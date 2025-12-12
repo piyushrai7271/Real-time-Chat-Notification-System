@@ -12,6 +12,13 @@ app.use(
     })
 )
 
+// importing routes ...
+import authRoute from "./routes/auth/userAuth.routes.js";
+
+
+
+app.use("/api/auth",authRoute);
+
 app.use(express.json({limit:"20kb"}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
