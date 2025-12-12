@@ -3,24 +3,21 @@ import express from "express";
 import cors from "cors";
 const app = express();
 
-
 app.use(
-    cors({
-        origin:process.env.CORS_ORIGIN,
-        methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-        credentials: true,
-    })
-)
+  cors({
+    origin: process.env.CORS_ORIGIN,
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true,
+  })
+);
+
+app.use(express.json({ limit: "20kb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // importing routes ...
 import authRoute from "./routes/auth/userAuth.routes.js";
 
-
-
-app.use("/api/auth",authRoute);
-
-app.use(express.json({limit:"20kb"}));
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use("/api/auth", authRoute);
 
 export default app;
