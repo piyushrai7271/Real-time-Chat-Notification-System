@@ -42,9 +42,9 @@ const resetPasswordLink = async (user) => {
     });
 
     const mailOptions = {
-      from: `"NodeBoilerPlate" <${process.env.EMAIL_USER}>`,
+      from: `"Real-Time-System" <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: "Reset Your nodeBoilerPlate login Password",
+      subject: "Reset Your chatting login Password",
       html: resetPasswordEmailHTML(displayName, resetLink),
       text: resetPasswordEmailText(displayName, resetLink),
     };
