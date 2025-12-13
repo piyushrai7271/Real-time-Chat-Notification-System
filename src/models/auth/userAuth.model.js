@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
         trim:true
     },
     about:{
-        type:String,
+        type:String, // small details about user
         trim:true
     },
     profileImage:{
@@ -64,7 +64,7 @@ userSchema.pre("save", async function (next){
   }
    // hashing otp
    if(this.isModified("otp") && this.otp && !this.otp.startsWith("$2b$")){
-    this.otp = await bcrypt.hash(this.otp.toString(),10)
+    this.otp = await bcrypt.hash(this.otp.toString(),8)
    }
    next();
 });
@@ -107,7 +107,7 @@ userSchema.methods.generateRefreshToken = function () {
     )
 }
 
-// Generate Otp token
+// Generate Otp token for verifying otp
 userSchema.methods.generateOtpToken = function (){
     return jwt.sign(
         {

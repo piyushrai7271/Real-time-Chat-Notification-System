@@ -20,7 +20,7 @@ const sendOtpVerifyEmail = async (user) => {
 
     // Save OTP to user (hashed in pre-save hook)
     user.otp = otp;
-    user.otpExpiresAt = Date.now() + 10 * 60 * 1000; // expires in 10 minutes
+    user.otpExpiresAt = Date.now() + 15 * 60 * 1000; // expires in 15 minutes
     await user.save();
 
     // Prepare email using updated company name
