@@ -27,7 +27,7 @@ const otpVerificationTemplate = (user, otp) => {
           ">
             ${otp}
           </span>
-          <p style="margin-top: 10px; color: #777;">This OTP is valid for <strong>10 minutes</strong>.</p>
+          <p style="margin-top: 10px; color: #777;">This OTP is valid for <strong>15 minutes</strong>.</p>
         </div>
 
         <!-- Security Notice -->
@@ -37,7 +37,7 @@ const otpVerificationTemplate = (user, otp) => {
 
         <p>If you didn’t request this, you can safely ignore this email.</p>
 
-        <p style="margin-top: 40px;">Best regards,<br><strong>NODEBOILERPLATE Team</strong></p>
+        <p style="margin-top: 40px;">Best regards,<br><strong>Chattify Team</strong></p>
       </div>
 
       <!-- Footer -->

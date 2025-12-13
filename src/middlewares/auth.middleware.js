@@ -3,34 +3,28 @@ import jwt from "jsonwebtoken";
 
 const protectedRoutes = async (req, res, next) => {
   try {
-    // take token from cookies or header
+    // Get token from cookies OR Authorization header
     const token =
-      (await req.cookies?.accessToken) ||
-      req.header("Authorization").replace("Bearer ", "");
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
 
-    // check token is comming or not
+    // If token missing
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized access !!!",
+        message: "Unauthorized access",
       });
     }
 
-    // decoded and verify jwt token
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-
-    // check decodedToken are get or not
-    if (!decodedToken) {
-      return res.status(404).json({
-        success: false,
-        message: "Can't find decoded token",
-      });
-    }
-
-    // find user with decoded token
-    const user = await User.findById(decodedToken._id || decodedToken.id).select(
-      "-password -refreshToken"
+    // Verify token
+    const decodedToken = jwt.verify(
+      token,
+      process.env.ACCESS_TOKEN_SECRET
     );
+
+    // Find user
+    const user = await User.findById(decodedToken._id)
+      .select("-password -refreshToken");
 
     if (!user) {
       return res.status(401).json({
@@ -38,7 +32,8 @@ const protectedRoutes = async (req, res, next) => {
         message: "Unauthorized: user not found",
       });
     }
-    // Ensure user has verified their email
+
+    //  Email verification check
     if (!user.isVerified) {
       return res.status(403).json({
         success: false,
@@ -46,24 +41,29 @@ const protectedRoutes = async (req, res, next) => {
       });
     }
 
-    // add user in request object
-    req.use = user;
+    // Attach user to request
+    req.user = user;
     req.userId = user._id;
+
+    // Move to next middleware/controller
+    next();
+
   } catch (error) {
-    console.error("Error in access token :", error.message);
+    console.error("JWT Error:", error.message);
     return res.status(401).json({
-        success:false,
-        message:"Access token is missing or expired !!"
-    })
+      success: false,
+      message: "Invalid or expired access token",
+    });
   }
 };
+
 
 const otpValidation = async (req, res, next) => {
   try {
     // take token from cookies or header
     const token =
-      (await req.cookies?.accessToken) ||
-      req.header("Authorization").replace("Bearer ", "");
+       req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
 
       // check token is comming or not
     if (!token) {
@@ -75,14 +75,6 @@ const otpValidation = async (req, res, next) => {
 
     //decoded the token with jwt
     const decodedToken = jwt.verify(token, process.env.OTP_TOKEN_SECRET);
-
-    // check decodedToken are get or not
-    if (!decodedToken) {
-      return res.status(404).json({
-        success: false,
-        message: "Can't find decoded token",
-      });
-    }
 
     // find user with decoded token
     const user = await UserToken.findById(decodedToken._id || decodedToken.id);
