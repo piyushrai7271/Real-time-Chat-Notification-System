@@ -502,23 +502,121 @@ const resetPassword = async (req, res) => {
 };
 const addProfileDetails = async (req, res) => {
   try {
-    // take details from body
-    const {gender,about} = req.body;
-    const profileImage = req.file;
-    // take userId from middleware
-    // validate details
-    // find user with userId
-    // add these details in user
-    // return success response
+    const { gender, about } = req.body;
+    const profileImage = req.file?.path;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized user",
+      });
+    }
+
+    if (!gender || !about) {
+      return res.status(400).json({
+        success: false,
+        message: "Gender or about is missing",
+      });
+    }
+
+    if (!["Male", "Female", "Other"].includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid gender value",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.gender = gender;
+    user.about = about;
+    if (profileImage) {
+      user.profileImage = profileImage;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile details added successfully",
+    });
   } catch (error) {
-    console.error("Error in adding profile detail :",error.message);
+    console.error("Error in addProfileDetails:", error.message);
     return res.status(500).json({
-      success:false,
-      message:"Internal server error !!"
-    })
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
-const updateUserDetails = async (req, res) => {};
+const updateUserDetails = async (req, res) => {
+  try {
+    const userId = req.userId; // coming from auth middleware
+    const { fullName, about, gender } = req.body;
+    const profileImage = req.file?.path; // cloudinary image URL
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized user",
+      });
+    }
+
+    // find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // update only provided fields
+    if (fullName) user.fullName = fullName;
+    if (about) user.about = about;
+
+    if (gender) {
+      if (!["Male", "Female", "Other"].includes(gender)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid gender value",
+        });
+      }
+      user.gender = gender;
+    }
+
+    // update profile image if uploaded
+    if (profileImage) {
+      user.profileImage = profileImage;
+    }
+
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: "User details updated successfully",
+      user: {
+        fullName: user.fullName,
+        email: user.email,
+        gender: user.gender,
+        about: user.about,
+        profileImage: user.profileImage,
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateUserDetails:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 const getUserDetail = async (req, res) => {
   try {
     // Extract userid from middleware

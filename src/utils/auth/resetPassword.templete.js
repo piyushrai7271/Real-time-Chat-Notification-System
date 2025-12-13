@@ -49,7 +49,7 @@ export const resetPasswordEmailHTML = (displayName, resetLink) => `
       
       <!-- Footer -->
       <p style="font-size: 14px; color: #999; margin-top: 30px; text-align: center;">
-        Thanks,<br/>The NodeBoilerPlate Team
+        Thanks,<br/>The Chattify Team
       </p>
       
     </div>
