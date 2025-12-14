@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
     },
     mobileNumber: {
       type: String,
-      unique:true,
+      unique: true,
       trim: true,
       match: [/^\d{10}$/, "Please enter a valid 10-digit phone number"],
     },
@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Hash password and otp before saving
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   //hashing password
   if (this.isModified("password") && this.password) {
     this.password = await bcrypt.hash(this.password, 10);
@@ -70,7 +70,6 @@ userSchema.pre("save", async function (next) {
   if (this.isModified("otp") && this.otp && !this.otp.startsWith("$2b$")) {
     this.otp = await bcrypt.hash(this.otp.toString(), 8);
   }
-  next();
 });
 
 // compare password
