@@ -1,6 +1,7 @@
 import User from "../models/auth/userAuth.model.js";
 import jwt from "jsonwebtoken";
 
+// protected routes middleware
 const protectedRoutes = async (req, res, next) => {
   try {
     // Get token from cookies OR Authorization header
@@ -57,7 +58,7 @@ const protectedRoutes = async (req, res, next) => {
   }
 };
 
-
+// middleware for verfyOtp
 const otpValidation = async (req, res, next) => {
   try {
     // take token from cookies or header
@@ -77,7 +78,7 @@ const otpValidation = async (req, res, next) => {
     const decodedToken = jwt.verify(token, process.env.OTP_TOKEN_SECRET);
 
     // find user with decoded token
-    const user = await UserToken.findById(decodedToken._id || decodedToken.id);
+    const user = await User.findById(decodedToken._id || decodedToken.id);
     if (!user) {
       return res.status(401).json({
         success: false,
