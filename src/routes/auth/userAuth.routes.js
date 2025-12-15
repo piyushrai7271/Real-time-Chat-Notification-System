@@ -16,6 +16,7 @@ import {
   updateUserDetails,
   getUserDetail,
   getAllUserDetails,
+  refreshAccessToken,
   logOut,
 } from "../../controllers/auth/userAuth.controller.js";
 const router = express.Router();
@@ -26,7 +27,7 @@ router.post("/resend-otp", otpValidation, resendOtp);
 router.post("/login", login);
 
 router.post("/forget-password", forgetPassword);
-router.post("/reset-password", resetPassword);
+router.post("/reset-password/:token", resetPassword);
 
 // Protected routes
 router.post("/change-password", protectedRoutes, changePassword);
@@ -44,6 +45,7 @@ router.put(
 );
 router.get("/get-user-details", protectedRoutes, getUserDetail);
 router.get("/get-alluser-details", protectedRoutes, getAllUserDetails);
+router.post("/refresh-token",refreshAccessToken);
 router.post("/logout", protectedRoutes, logOut);
 
 export default router;

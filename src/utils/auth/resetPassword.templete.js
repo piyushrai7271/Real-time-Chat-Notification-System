@@ -11,7 +11,7 @@ export const resetPasswordEmailHTML = (displayName, resetLink) => `
       
       <!-- Header -->
       <h1 style="text-align: center; color: #007bff; margin: 0; font-size: 28px; font-weight: 700;">
-        NodeBoilerPlate
+        Chattify App
       </h1>
       <h2 style="text-align: center; color: #333; margin-top: 10px; font-size: 20px; font-weight: 500;">
         Reset Your Password

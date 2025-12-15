@@ -6,7 +6,7 @@ import {
 } from "./resetPassword.templete.js";
 
 const resetPasswordLink = async (user) => {
-  const frontendBaseURL = process.env.CORS;
+  const frontendBaseURL = process.env.CORS_ORIGIN;
 
   // 🔒 Ensure required environment variables are present
   if (
