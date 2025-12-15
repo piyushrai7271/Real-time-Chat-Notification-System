@@ -267,9 +267,6 @@ const login = async (req, res) => {
       user._id
     );
 
-      user.refreshToken = refreshToken;
-      await user.save({validateBeforeSave:false});
-
     // Remove sensitive data
     const loggedInUser = await User.findById(user._id).select(
       "-password -refreshToken -otp -otpExpiresAt"
@@ -299,7 +296,7 @@ const login = async (req, res) => {
         success: true,
         message: "User Loged in successfully !!",
         user: loggedInUser,
-        accessToken
+        // accessToken
       });
   } catch (error) {
     console.error("Error in login user :", error.message);
@@ -710,9 +707,11 @@ const getAllUserDetails = async (req, res) => {
 };
 const refreshAccessToken = async(req,res) =>{
 
+ // take token from cookies or body
   const incmingRefreshToken =
   req.cookies?.refreshToken || req.body.refreshToken;
-
+ 
+  // validate token
   if(!incmingRefreshToken){
     return res.status(404).json({
       success:false,
@@ -721,6 +720,7 @@ const refreshAccessToken = async(req,res) =>{
   }
 
   try {
+    // decoded token with jwt and validate the token
     const decodedToken = jwt.verify(
       incmingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
@@ -733,6 +733,7 @@ const refreshAccessToken = async(req,res) =>{
       })
      }
 
+     // find user with decoded token
      const user = await User.findById(decodedToken._id);
 
      if(!user){
@@ -742,6 +743,7 @@ const refreshAccessToken = async(req,res) =>{
       })
      }
 
+     //compair incomming refreresh toke  with refresh token saved in db
      if(incmingRefreshToken !== user.refreshToken){
       return res.status(405).json({
         success:false,
@@ -749,10 +751,8 @@ const refreshAccessToken = async(req,res) =>{
       })
      }
 
-     const {accessToken,refreshToken} = generateAccessAndRefreshToken(user._id);
+     const {accessToken,refreshToken} = await generateAccessAndRefreshToken(user._id);
 
-     user.refreshToken = refreshToken;
-     await user.save({validateBeforeSave:false});
 
      // generate cookie options and pass access and refresh token in cookie
     let isProduction = process.env.NODE_ENV === "production";
@@ -777,8 +777,8 @@ const refreshAccessToken = async(req,res) =>{
         .json({
           success:true,
           message:"Token is refreshed successfully !!",
-          accessToken,
-          refreshToken
+          // accessToken,
+          // refreshToken
         })
   } catch (error) {
     console.error("Error in refreshing token :",error.message);
@@ -829,7 +829,7 @@ const logOut = async (req, res) => {
     return res
       .status(200)
       .clearCookie("accessToken", accessTokenOptions)
-      .clearCookie("refreshToekn", refreshTokenOptions)
+      .clearCookie("refreshToken", refreshTokenOptions)
       .json({
         success: true,
         message: "User logged out successfully !!",

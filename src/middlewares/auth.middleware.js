@@ -63,7 +63,7 @@ const otpValidation = async (req, res, next) => {
   try {
     // take token from cookies or header
     const token =
-       req.cookies?.accessToken ||
+       req.cookies?.otpToken ||
       req.header("Authorization")?.replace("Bearer ", "");
 
       // check token is comming or not
