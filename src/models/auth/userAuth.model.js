@@ -51,6 +51,18 @@ const userSchema = new mongoose.Schema(
     otpExpiresAt: {
       type: Date,
     },
+    otpAttemptCount:{
+      type:Number,
+      default:0,// Track wrong OTP attempts
+    },
+    otpBlockedUntil:{
+      type:Date,
+      default:null // if set, user is blocked from verifying OTP
+    },
+    lastOtpSentAt:{
+      type:Date,
+      default:null // Track when the OTP was sent (for resent cooldown)
+    },
     refreshToken: {
       type: String,
       default: "",

@@ -103,7 +103,7 @@ const register = async (req, res) => {
         mobileNumber: user.mobileNumber,
         isVerified: user.isVerified,
       },
-      otpToken
+      otpToken,
     });
   } catch (error) {
     console.error("Error in regester user :", error);
@@ -115,27 +115,23 @@ const register = async (req, res) => {
 };
 const verifyOtp = async (req, res) => {
   try {
-    // take otp from body and userId frommiddleware
     const { otp } = req.body;
     const userId = req.userId;
 
-    // validate otp is comming or not
     if (!otp) {
       return res.status(400).json({
         success: false,
-        message: "Otp is required",
+        message: "OTP is required",
       });
     }
 
-    // validate userId is comming or not
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized : missing user information",
+        message: "Unauthorized access",
       });
     }
 
-    //find user & validate OTP existence
     const user = await User.findById(userId);
     if (!user || !user.otp || !user.otpExpiresAt) {
       return res.status(400).json({
@@ -144,7 +140,15 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // check OTP expiration
+    // 🚫 Check if user is blocked
+    if (user.otpBlockedUntil && user.otpBlockedUntil > Date.now()) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many failed attempts. Please try again later.",
+      });
+    }
+
+    // ⏰ Check OTP expiry
     if (Date.now() > new Date(user.otpExpiresAt).getTime()) {
       return res.status(400).json({
         success: false,
@@ -152,74 +156,111 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // Verify OTP correctness
     const isOtpCorrect = await user.isOtpCorrect(otp);
+
+    // ❌ Wrong OTP
     if (!isOtpCorrect) {
+      user.otpAttemptCount += 1;
+
+      // 🔒 Block user after max attempts
+      if (user.otpAttemptCount >= process.env.MAX_OTP_ATTEMPTS) {
+        user.otpBlockedUntil = new Date(
+          Date.now() + process.env.OTP_BLOCK_TIME
+        );
+      }
+
+      await user.save({ validateBeforeSave: false });
+
       return res.status(400).json({
         success: false,
         message: "Invalid OTP",
       });
     }
 
-    // Mark user as verified & clear OTP fields
+    // ✅ SUCCESS → reset everything
     user.isVerified = true;
     user.otp = null;
     user.otpExpiresAt = null;
-    await user.save();
+    user.otpAttemptCount = 0;
+    user.otpBlockedUntil = null;
 
-    // Send success response
+    await user.save({ validateBeforeSave: false });
+
     return res.status(200).json({
       success: true,
       message: "OTP verified successfully. You can now log in.",
     });
   } catch (error) {
-    console.error("Error in verify otp :", error.message);
+    console.error("Error in verifyOtp:", error.message);
     return res.status(500).json({
       success: false,
-      message: "Internal server error !!",
+      message: "Internal server error",
     });
   }
 };
 const resendOtp = async (req, res) => {
   try {
-    // take user id from middleware
     const user = req.user;
 
-    // validate userid
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized : user id is missing !!",
+        message: "Unauthorized access",
       });
     }
 
-    // check if user already verified
     if (user.isVerified) {
       return res.status(400).json({
         success: false,
         message: "Email already verified",
       });
     }
-    // if user found than call the function for sending otp email
-    // Send OTP email
-    const response = await sendOtpVerifyEmail(user);
-    if (response.success) {
-      return res.status(200).json({
-        success: true,
-        message: "Otp resent successfully",
+
+    // 🚫 Check if blocked
+    if (user.otpBlockedUntil && user.otpBlockedUntil > Date.now()) {
+      return res.status(429).json({
+        success: false,
+        message: "OTP requests temporarily blocked. Try again later.",
       });
     }
 
-    // success response
-    return res.status(500).json({
-      success: false,
-      message: "Failed to resend OTP. Please try again later",
+    // ⏳ Cooldown check
+    if (
+      user.lastOtpSentAt &&
+      Date.now() - new Date(user.lastOtpSentAt).getTime() <
+        process.env.OTP_RESEND_COOLDOWN
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: "Please wait before requesting a new OTP",
+      });
+    }
+
+    // 📩 Send OTP
+    const response = await sendOtpVerifyEmail(user);
+    if (!response.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to resend OTP. Please try again later.",
+      });
+    }
+
+    // 🔄 Reset OTP attempt counters
+    user.lastOtpSentAt = new Date();
+    user.otpAttemptCount = 0;
+    user.otpBlockedUntil = null;
+
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP resent successfully",
     });
   } catch (error) {
-    console.error("Error in resending otp :", error.message);
+    console.error("Error in resendOtp:", error.message);
     return res.status(500).json({
       success: false,
-      message: "Internal server error in resending otp",
+      message: "Internal server error",
     });
   }
 };
@@ -705,18 +746,17 @@ const getAllUserDetails = async (req, res) => {
     });
   }
 };
-const refreshAccessToken = async(req,res) =>{
-
- // take token from cookies or body
+const refreshAccessToken = async (req, res) => {
+  // take token from cookies or body
   const incmingRefreshToken =
-  req.cookies?.refreshToken || req.body.refreshToken;
- 
+    req.cookies?.refreshToken || req.body.refreshToken;
+
   // validate token
-  if(!incmingRefreshToken){
+  if (!incmingRefreshToken) {
     return res.status(404).json({
-      success:false,
-      message:"Unauthorized access"
-    })
+      success: false,
+      message: "Unauthorized access",
+    });
   }
 
   try {
@@ -726,35 +766,36 @@ const refreshAccessToken = async(req,res) =>{
       process.env.REFRESH_TOKEN_SECRET
     );
 
-     if(!decodedToken){
+    if (!decodedToken) {
       return res.status(402).json({
-        success:false,
-        message:"decoded token is not comming"
-      })
-     }
+        success: false,
+        message: "decoded token is not comming",
+      });
+    }
 
-     // find user with decoded token
-     const user = await User.findById(decodedToken._id);
+    // find user with decoded token
+    const user = await User.findById(decodedToken._id);
 
-     if(!user){
+    if (!user) {
       return res.status(404).json({
-        success:false,
-        message:"Invalid refreshToken"
-      })
-     }
+        success: false,
+        message: "Invalid refreshToken",
+      });
+    }
 
-     //compair incomming refreresh toke  with refresh token saved in db
-     if(incmingRefreshToken !== user.refreshToken){
+    //compair incomming refreresh toke  with refresh token saved in db
+    if (incmingRefreshToken !== user.refreshToken) {
       return res.status(405).json({
-        success:false,
-        message:"RefreshToken is expired or used"
-      })
-     }
+        success: false,
+        message: "RefreshToken is expired or used",
+      });
+    }
 
-     const {accessToken,refreshToken} = await generateAccessAndRefreshToken(user._id);
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+      user._id
+    );
 
-
-     // generate cookie options and pass access and refresh token in cookie
+    // generate cookie options and pass access and refresh token in cookie
     let isProduction = process.env.NODE_ENV === "production";
     const accessTokenOptions = {
       httpOnly: true,
@@ -769,25 +810,25 @@ const refreshAccessToken = async(req,res) =>{
       sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
- 
+
     return res
-        .status(200)
-        .cookie("accessToken",accessToken,accessTokenOptions)
-        .cookie("refreshToken",refreshToken,refreshTokenOptions)
-        .json({
-          success:true,
-          message:"Token is refreshed successfully !!",
-          // accessToken,
-          // refreshToken
-        })
+      .status(200)
+      .cookie("accessToken", accessToken, accessTokenOptions)
+      .cookie("refreshToken", refreshToken, refreshTokenOptions)
+      .json({
+        success: true,
+        message: "Token is refreshed successfully !!",
+        // accessToken,
+        // refreshToken
+      });
   } catch (error) {
-    console.error("Error in refreshing token :",error.message);
+    console.error("Error in refreshing token :", error.message);
     return res.status(500).json({
-      success:false,
-      message:"Internal server error in refreshing token"
-    })
+      success: false,
+      message: "Internal server error in refreshing token",
+    });
   }
-}
+};
 const logOut = async (req, res) => {
   try {
     const userId = req.userId;
@@ -858,3 +899,116 @@ export {
   refreshAccessToken,
   logOut,
 };
+
+
+// const verifyOtp = async (req, res) => {
+//   try {
+//     // take otp from body and userId frommiddleware
+//     const { otp } = req.body;
+//     const userId = req.userId;
+
+//     // validate otp is comming or not
+//     if (!otp) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Otp is required",
+//       });
+//     }
+
+//     // validate userId is comming or not
+//     if (!userId) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized : missing user information",
+//       });
+//     }
+
+//     //find user & validate OTP existence
+//     const user = await User.findById(userId);
+//     if (!user || !user.otp || !user.otpExpiresAt) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid or expired OTP request",
+//       });
+//     }
+
+//     // check OTP expiration
+//     if (Date.now() > new Date(user.otpExpiresAt).getTime()) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "OTP has expired. Please request a new one.",
+//       });
+//     }
+
+//     // Verify OTP correctness
+//     const isOtpCorrect = await user.isOtpCorrect(otp);
+//     if (!isOtpCorrect) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid OTP",
+//       });
+//     }
+
+//     // Mark user as verified & clear OTP fields
+//     user.isVerified = true;
+//     user.otp = null;
+//     user.otpExpiresAt = null;
+//     await user.save();
+
+//     // Send success response
+//     return res.status(200).json({
+//       success: true,
+//       message: "OTP verified successfully. You can now log in.",
+//     });
+//   } catch (error) {
+//     console.error("Error in verify otp :", error.message);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error !!",
+//     });
+//   }
+// };
+// const resendOtp = async (req, res) => {
+//   try {
+//     // take user id from middleware
+//     const user = req.user;
+
+//     // validate userid
+//     if (!user) {
+//       return res.status(401).json({
+//         success: false,
+//         message: "Unauthorized : user id is missing !!",
+//       });
+//     }
+
+//     // check if user already verified
+//     if (user.isVerified) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Email already verified",
+//       });
+//     }
+//     // if user found than call the function for sending otp email
+//     // Send OTP email
+//     const response = await sendOtpVerifyEmail(user);
+//     if (response.success) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Otp resent successfully",
+//       });
+//     }
+
+//     // success response
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to resend OTP. Please try again later",
+//     });
+//   } catch (error) {
+//     console.error("Error in resending otp :", error.message);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error in resending otp",
+//     });
+//   }
+// };
+
