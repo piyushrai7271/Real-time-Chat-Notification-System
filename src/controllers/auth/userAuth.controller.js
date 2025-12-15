@@ -708,6 +708,86 @@ const getAllUserDetails = async (req, res) => {
     });
   }
 };
+const refreshAccessToken = async(req,res) =>{
+
+  const incmingRefreshToken =
+  req.cookies?.refreshToken || req.body.refreshToken;
+
+  if(!incmingRefreshToken){
+    return res.status(404).json({
+      success:false,
+      message:"Unauthorized access"
+    })
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incmingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+     if(!decodedToken){
+      return res.status(402).json({
+        success:false,
+        message:"decoded token is not comming"
+      })
+     }
+
+     const user = await User.findById(decodedToken._id);
+
+     if(!user){
+      return res.status(404).json({
+        success:false,
+        message:"Invalid refreshToken"
+      })
+     }
+
+     if(incmingRefreshToken !== user.refreshToken){
+      return res.status(405).json({
+        success:false,
+        message:"RefreshToken is expired or used"
+      })
+     }
+
+     const {accessToken,refreshToken} = generateAccessAndRefreshToken(user._id);
+
+     user.refreshToken = refreshToken;
+     await user.save({validateBeforeSave:false});
+
+     // generate cookie options and pass access and refresh token in cookie
+    let isProduction = process.env.NODE_ENV === "production";
+    const accessTokenOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 5 * 60 * 1000,
+    };
+
+    const refreshTokenOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+ 
+    return res
+        .status(200)
+        .cookie("accessToken",accessToken,accessTokenOptions)
+        .cookie("refreshToken",refreshToken,refreshTokenOptions)
+        .json({
+          success:true,
+          message:"Token is refreshed successfully !!",
+          accessToken,
+          refreshToken
+        })
+  } catch (error) {
+    console.error("Error in refreshing token :",error.message);
+    return res.status(500).json({
+      success:false,
+      message:"Internal server error in refreshing token"
+    })
+  }
+}
 const logOut = async (req, res) => {
   try {
     const userId = req.userId;
@@ -775,5 +855,6 @@ export {
   updateUserDetails,
   getUserDetail,
   getAllUserDetails,
+  refreshAccessToken,
   logOut,
 };
