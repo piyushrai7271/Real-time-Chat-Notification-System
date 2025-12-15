@@ -3,6 +3,7 @@ import {
   protectedRoutes,
   otpValidation,
 } from "../../middlewares/auth.middleware.js";
+import { otpRateLimiter as rateLimiting } from "../../middlewares/reateLimiter.middleware.js";
 import { uploadImage } from "../../config/cloudinary.js";
 import {
   register,
@@ -22,8 +23,8 @@ import {
 const router = express.Router();
 
 router.post("/register", register);
-router.post("/verify-otp", otpValidation, verifyOtp);
-router.post("/resend-otp", otpValidation, resendOtp);
+router.post("/verify-otp", rateLimiting, otpValidation, verifyOtp);
+router.post("/resend-otp", rateLimiting, otpValidation, resendOtp);
 router.post("/login", login);
 
 router.post("/forget-password", forgetPassword);
@@ -45,7 +46,7 @@ router.put(
 );
 router.get("/get-user-details", protectedRoutes, getUserDetail);
 router.get("/get-alluser-details", protectedRoutes, getAllUserDetails);
-router.post("/refresh-token",refreshAccessToken);
+router.post("/refresh-token", refreshAccessToken);
 router.post("/logout", protectedRoutes, logOut);
 
 export default router;
