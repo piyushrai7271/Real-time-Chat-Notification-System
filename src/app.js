@@ -17,7 +17,9 @@ app.use(cookieParser());
 
 // importing routes ...
 import authRoute from "./routes/auth/userAuth.routes.js";
+import chatRoutes from "./routes/chat/message.routes.js";
 
 app.use("/api/auth", authRoute);
+app.use("/api/message",chatRoutes);
 
 export default app;
